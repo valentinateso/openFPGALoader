@@ -29,7 +29,7 @@ libusb_ll::~libusb_ll()
 	libusb_exit(_usb_ctx);
 }
 
-bool libusb_ll::scan()
+usb_scan_item** libusb_ll::scan(int8_t verbose_level)
 {
 	int i = 0;
 	libusb_device **dev_list;
@@ -41,48 +41,53 @@ bool libusb_ll::scan()
 	if (_verbose)
 		printInfo("found " + std::to_string(list_size) + " USB device");
 
-	char *mess = (char *)malloc(1024);
-	snprintf(mess, 1024, "%3s %3s %-13s %-15s %-12s %-20s %s",
-			"Bus", "device", "vid:pid", "probe type", "manufacturer",
-			"serial", "product");
-	printSuccess(mess);
+    char *mess = (char *) malloc(1024);
+    if(verbose_level > 0) {
+        snprintf(mess, 1024, "%3s %3s %-13s %-15s %-12s %-20s %s",
+                 "Bus", "device", "vid:pid", "probe type", "manufacturer",
+                 "serial", "product");
+        printSuccess(mess);
+    }
+
+    int items_id = 0;
+    auto items = new usb_scan_item*[list_size];
 
 	while ((usb_dev = dev_list[i++]) != NULL) {
 		bool found = false;
 		struct libusb_device_descriptor desc;
 		if (libusb_get_device_descriptor(usb_dev, &desc) != 0) {
 			printError("Unable to get device descriptor");
-			return false;
+			return nullptr;
 		}
-
-		char probe_type[256];
 
 		/* Linux host controller */
 		if (desc.idVendor == 0x1d6b)
 			continue;
 
+        auto* item = new usb_scan_item();
+
 		/* ftdi devices */
 		// FIXME: missing iProduct in cable_list
 		if (desc.idVendor == 0x403) {
 			if (desc.idProduct == 0x6010)
-				snprintf(probe_type, 256, "FTDI2232");
+				snprintf(item->probe_type, 256, "FTDI2232");
 			else if (desc.idProduct == 0x6011)
-				snprintf(probe_type, 256, "ft4232");
+				snprintf(item->probe_type, 256, "ft4232");
 			else if (desc.idProduct == 0x6001)
-				snprintf(probe_type, 256, "ft232RL");
+				snprintf(item->probe_type, 256, "ft232RL");
 			else if (desc.idProduct == 0x6014)
-				snprintf(probe_type, 256, "ft232H");
+				snprintf(item->probe_type, 256, "ft232H");
 			else if (desc.idProduct == 0x6015)
-				snprintf(probe_type, 256, "ft231X");
+				snprintf(item->probe_type, 256, "ft231X");
 			else
-				snprintf(probe_type, 256, "unknown FTDI");
+				snprintf(item->probe_type, 256, "unknown FTDI");
 			found = true;
 		} else {
 			// FIXME: DFU device can't be detected here
 			for (auto b = cable_list.begin(); b != cable_list.end(); b++) {
 				cable_t *c = &(*b).second;
 				if (c->vid == desc.idVendor && c->pid == desc.idProduct) {
-					snprintf(probe_type, 256, "%s", (*b).first.c_str());
+					snprintf(item->probe_type, 256, "%s", (*b).first.c_str());
 					found = true;
 				}
 			}
@@ -102,36 +107,43 @@ bool libusb_ll::scan()
 			continue;
 		}
 
-		uint8_t iproduct[200];
-		uint8_t iserial[200];
-		uint8_t imanufacturer[200];
 		ret = libusb_get_string_descriptor_ascii(handle,
-			desc.iProduct, iproduct, 200);
+			desc.iProduct, item->iproduct, 200);
 		if (ret < 0)
-			snprintf((char*)iproduct, 200, "none");
+			snprintf((char*)item->iproduct, 200, "none");
 		ret = libusb_get_string_descriptor_ascii(handle,
-			desc.iManufacturer, imanufacturer, 200);
+			desc.iManufacturer, item->imanufacturer, 200);
 		if (ret < 0)
-			snprintf((char*)imanufacturer, 200, "none");
+			snprintf((char*)item->imanufacturer, 200, "none");
 		ret = libusb_get_string_descriptor_ascii(handle,
-			desc.iSerialNumber, iserial, 200);
+			desc.iSerialNumber, item->iserial, 200);
 		if (ret < 0)
-			snprintf((char*)iserial, 200, "none");
-		uint8_t bus_addr = libusb_get_bus_number(usb_dev);
-		uint8_t dev_addr = libusb_get_device_address(usb_dev);
+			snprintf((char*)item->iserial, 200, "none");
+        item->bus_addr = libusb_get_bus_number(usb_dev);
+        item->dev_addr = libusb_get_device_address(usb_dev);
+        item->vid = desc.idVendor;
+        item->pid = desc.idProduct;
 
-		snprintf(mess, 1024, "%03d %03d    0x%04x:0x%04x %-15s %-12s %-20s %s",
-				bus_addr, dev_addr,
-				desc.idVendor, desc.idProduct,
-				probe_type, imanufacturer, iserial, iproduct);
+        items[items_id++] = item;
 
-		printInfo(mess);
+        if(verbose_level > 0) {
+            snprintf(mess, 1024, "%03d %03d    0x%04x:0x%04x %-15s %-12s %-20s %s",
+                     item->bus_addr, item->dev_addr,
+                     item->vid, item->pid,
+                     items[0]->probe_type, item->imanufacturer, item->iserial, item->iproduct);
+
+            printInfo(mess);
+        }
 
 		libusb_close(handle);
 	}
 
+    while (items_id < list_size) {
+        items[items_id++] = NULL;
+    }
+
 	libusb_free_device_list(dev_list, 1);
 	free(mess);
 
-	return true;
+	return items;
 }

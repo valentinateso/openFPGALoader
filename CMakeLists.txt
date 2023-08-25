@@ -115,7 +115,6 @@ set(OPENFPGALOADER_SOURCE
 	src/ftdiJtagMPSSE.cpp
 	src/configBitstreamParser.cpp
 	src/ftdipp_mpsse.cpp
-	src/main.cpp
 	src/latticeBitParser.cpp
 	src/libusb_ll.cpp
 	src/gowin.cpp
@@ -132,6 +131,8 @@ set(OPENFPGALOADER_SOURCE
 	src/xilinxMapParser.cpp
 	src/colognechip.cpp
 	src/colognechipCfgParser.cpp
+	src/openFPGALoader.cpp
+	src/atSerialCommunication.cpp
 )
 
 set(OPENFPGALOADER_HEADERS
@@ -184,6 +185,8 @@ set(OPENFPGALOADER_HEADERS
 	src/xilinxMapParser.hpp
 	src/colognechip.hpp
 	src/colognechipCfgParser.hpp
+	src/openFPGALoader.h
+	src/atSerialCommunication.hpp
 )
 
 link_directories(
@@ -199,7 +202,7 @@ if (ENABLE_CMSISDAP AND HIDAPI_FOUND)
 	link_directories(${HIDAPI_LIBRARY_DIRS})
 endif()
 
-add_executable(openFPGALoader
+add_library(openFPGALoader
 	${OPENFPGALOADER_SOURCE}
 	${OPENFPGALOADER_HEADERS}
 )
