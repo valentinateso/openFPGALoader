@@ -44,8 +44,8 @@ std::string ATSerialCommunication::write_command(unsigned char *command, int len
     }
 
 
-    unsigned char u_response[255];
-    ret = ftdi_read_data(_ftdi, u_response, 255);
+    unsigned char u_response[256];
+    ret = ftdi_read_data(_ftdi, u_response, 256);
     if (ret < 0) {
         printf("Read error: %s\n", std::to_string(ret).c_str());
         return "NULL";
@@ -55,7 +55,7 @@ std::string ATSerialCommunication::write_command(unsigned char *command, int len
         printf("Response: %s\n", u_response);
     }
 
-    char response[255];
+    char response[256];
     snprintf(response, sizeof u_response, "%s", u_response);
     return response;
 }
