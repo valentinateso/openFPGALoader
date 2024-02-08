@@ -30,6 +30,7 @@ class FPGALoader {
 public:
     std::string write_flash(char* verbose_level, char* cable, char* ftdi_channel, char* spi_over_jtag_file, char* mcs_file);
     std::string send_command(int verbose_level, char* cable, char* command, int len);
+    std::string reset(char *verbose_level, char *cable, char *ftdi_channel);
     std::map<uint32_t, fpga_model> detect_fpga(int8_t verbose_level, usb_scan_item item, const char* cable_name, int ftdi_channel);
     usb_scan_item **scan_usb(int8_t verbose_level);
 };

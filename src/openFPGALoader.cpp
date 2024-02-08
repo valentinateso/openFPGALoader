@@ -1107,3 +1107,10 @@ std::string FPGALoader::send_command(int verbose_level, char* cable, char* comma
     delete(at_communication);
     return ret;
 }
+
+std::string FPGALoader::reset(char *verbose_level, char *cable, char *ftdi_channel) {
+    char *arguments[] = {"openFPGALoader", "--verbose-level", verbose_level, "-c", cable, "--ftdi-channel",
+                         ftdi_channel, "--reset",
+                         NULL};
+    return main_fpga(8, arguments);
+}
