@@ -24,9 +24,6 @@
 #include "jetsonNanoJtagBitbang.hpp"
 #endif
 #include "jlink.hpp"
-#ifdef ENABLE_CMSISDAP
-#include "cmsisDAP.hpp"
-#endif
 #include "dirtyJtag.hpp"
 #include "part.hpp"
 #ifdef ENABLE_REMOTEBITBANG
@@ -120,13 +117,8 @@ void Jtag::init_internal(const cable_t &cable, const string &dev, const string &
 		_jtag = new UsbBlaster(cable, firmware_path, _verbose);
 		break;
 	case MODE_CMSISDAP:
-#ifdef ENABLE_CMSISDAP
-		_jtag = new CmsisDAP(cable, cable.config.index, _verbose);
-		break;
-#else
 		std::cerr << "Jtag: support for cmsisdap was not enabled at compile time" << std::endl;
 		throw std::exception();
-#endif
 	case MODE_XVC_CLIENT:
 #ifdef ENABLE_XVC
 		_jtag = new XVC_client(ip_adr, port, clkHZ, _verbose);
