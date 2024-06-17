@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "openFPGALoader.h"
+#include "verbose.hpp"
 
 #ifdef ENABLE_XVC
 #include "xvc_server.hpp"
@@ -419,13 +420,13 @@ std::string main_fpga(int argc, char **argv) {
     int found = listDev.size();
     int idcode = -1, index = 0;
 
-    if (args.verbose > 0)
+    if (args.verbose > normal)
         cout << "found " << std::to_string(found) << " devices" << endl;
 
     /* in verbose mode or when detect
      * display full chain with details
      */
-    if (args.verbose > 0 || args.detect) {
+    if (args.verbose > normal || args.detect) {
         for (int i = 0; i < found; i++) {
             int t = listDev[i];
             printf("index %d:\n", i);
@@ -1102,7 +1103,7 @@ std::string FPGALoader::send_command(int verbose_level, char* cable, char* comma
     if (select_cable == cable_list.end()) {
         return "Error : cable not found";
     }
-    ATSerialCommunication* at_communication = new ATSerialCommunication(select_cable->second, verbose_level > 0);
+    ATSerialCommunication* at_communication = new ATSerialCommunication(select_cable->second, verbose_level);
     auto ret = at_communication->write_command(reinterpret_cast<unsigned char*>(command), len, verbose_level);
     delete(at_communication);
     return ret;

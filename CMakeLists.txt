@@ -187,6 +187,7 @@ set(OPENFPGALOADER_HEADERS
 	src/colognechipCfgParser.hpp
 	src/openFPGALoader.h
 	src/atSerialCommunication.hpp
+	src/verbose.hpp
 )
 
 link_directories(

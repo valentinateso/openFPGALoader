@@ -9,12 +9,16 @@
 
 class ATSerialCommunication {
 public:
-    ATSerialCommunication(const cable_t &cable, bool verbose);
+    ATSerialCommunication(const cable_t &cable, int verbose);
     ~ATSerialCommunication();
-    std::string write_command(unsigned char* command, int len, bool verbose);
+    std::string write_command(unsigned char* command, int len, int verbose);
 
 protected:
     struct ftdi_context *_ftdi;
+
+    static const int MESSAGE_SIZE;
+    static const int BAUDRATE;
+    static const int LATENCY;
 
 };
 

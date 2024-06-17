@@ -14,6 +14,8 @@
 #include "display.hpp"
 #include "libusb_ll.hpp"
 
+#include "verbose.hpp"
+
 using namespace std;
 
 libusb_ll::libusb_ll(int vid, int pid):_verbose(true)
@@ -38,11 +40,11 @@ usb_scan_item** libusb_ll::scan(int8_t verbose_level)
 
 	/* iteration */
 	ssize_t list_size = libusb_get_device_list(_usb_ctx, &dev_list);
-	if (_verbose)
+	if (verbose_level > normal)
 		printInfo("found " + std::to_string(list_size) + " USB device");
 
     char *mess = (char *) malloc(1024);
-    if(verbose_level > 0) {
+    if(verbose_level > normal) {
         snprintf(mess, 1024, "%3s %3s %-13s %-15s %-12s %-20s %s",
                  "Bus", "device", "vid:pid", "probe type", "manufacturer",
                  "serial", "product");
@@ -126,7 +128,7 @@ usb_scan_item** libusb_ll::scan(int8_t verbose_level)
 
         items[items_id++] = item;
 
-        if(verbose_level > 0) {
+        if(verbose_level > normal) {
             snprintf(mess, 1024, "%03d %03d    0x%04x:0x%04x %-15s %-12s %-20s %s",
                      item->bus_addr, item->dev_addr,
                      item->vid, item->pid,
