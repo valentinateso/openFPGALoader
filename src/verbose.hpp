@@ -12,4 +12,14 @@ enum verbose_level {
     debug = 2
 };
 
+#define LOG_ERR(fmt, ...)                                               \
+    fprintf(stderr, "[ERROR] %s:%d: " fmt "\n", __func__, __LINE__, ##__VA_ARGS__)
+
+#define LOG_WARNING(fmt, ...)                                               \
+    fprintf(stderr, "[WARNING] %s:%d: " fmt "\n", __func__, __LINE__, ##__VA_ARGS__)
+
+#define LOG_INFO(fmt, ...)                                               \
+    fprintf(stderr, "[INFO] %s:%d: " fmt "\n", __func__, __LINE__, ##__VA_ARGS__)
+
+
 #endif //OPENFPGALOADER_VERBOSE_H

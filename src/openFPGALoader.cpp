@@ -121,9 +121,9 @@ std::string main_fpga(int argc, char **argv) {
     }
 
     if (args.prg_type == Device::WR_SRAM)
-        cout << "write to ram" << endl;
+        LOG_INFO("write to ram");
     if (args.prg_type == Device::WR_FLASH)
-        cout << "write to flash" << endl;
+        LOG_INFO("write to flash");
 
     if (args.board[0] != '-') {
         if (board_list.find(args.board) != board_list.end()) {
@@ -150,13 +150,13 @@ std::string main_fpga(int argc, char **argv) {
             if (args.cable[0] == '-') {  // no user selection
                 args.cable = (*t).first;  // use board default cable
             } else {
-                cout << "Board default cable overridden with " << args.cable << endl;
+                LOG_INFO("Board default cable overridden with %s", args.cable.c_str());
             }
         }
 
         /* Xilinx only: to write flash exact fpga model must be provided */
         if (!board->fpga_part.empty() && !args.fpga_part.empty())
-            printInfo("Board default fpga part overridden with " + args.fpga_part);
+            LOG_INFO("Board default fpga part overridden with %s", args.fpga_part.c_str());
         else if (!board->fpga_part.empty() && args.fpga_part.empty())
             args.fpga_part = board->fpga_part;
 
@@ -170,7 +170,7 @@ std::string main_fpga(int argc, char **argv) {
     }
 
     if (args.cable[0] == '-') { /* if no board and no cable */
-        printWarn("No cable or board specified: using direct ft2232 interface");
+        LOG_WARNING("No cable or board specified: using direct ft2232 interface");
         args.cable = "ft2232";
     }
 
@@ -203,11 +203,11 @@ std::string main_fpga(int argc, char **argv) {
     }
 
     if (args.vid != 0) {
-        printInfo("Cable VID overridden");
+        LOG_INFO("Cable VID overridden");
         cable.vid = args.vid;
     }
     if (args.pid != 0) {
-        printInfo("Cable PID overridden");
+        LOG_INFO("Cable PID overridden");
         cable.pid = args.pid;
     }
 
@@ -253,7 +253,7 @@ std::string main_fpga(int argc, char **argv) {
             }
             if (args.prg_type == Device::RD_FLASH) {
                 if (args.file_size == 0) {
-                    printError("Error: 0 size for dump");
+                    LOG_ERR("0 size for dump");
                 } else {
                     target->dumpFlash(args.offset, args.file_size);
                 }
@@ -283,27 +283,27 @@ std::string main_fpga(int argc, char **argv) {
 
             if (args.prg_type != Device::RD_FLASH &&
                 (!args.bit_file.empty() || !args.file_type.empty())) {
-                printInfo("Open file " + args.bit_file + " ", false);
+                LOG_INFO("Open file %s %s", args.bit_file.c_str(), "false");
                 try {
                     bit = new RawParser(args.bit_file, false);
-                    printSuccess("DONE");
+                    LOG_INFO("DONE");
                 } catch (std::exception &e) {
                     delete spi;
                     return "FAIL";
                 }
 
-                printInfo("Parse file ", false);
+                LOG_INFO("Parse file false");
                 if (bit->parse() == EXIT_FAILURE) {
                     delete spi;
                     return "FAIL";
                 } else {
-                    printSuccess("DONE");
+                    LOG_INFO("DONE");
                 }
 
                 try {
                     flash.erase_and_prog(args.offset, bit->getData(), bit->getLength() / 8);
                 } catch (std::exception &e) {
-                    printError("FAIL: " + string(e.what()));
+                    LOG_ERR("FAIL: %s", e.what());
                 }
 
                 if (args.verify)
@@ -348,18 +348,18 @@ std::string main_fpga(int argc, char **argv) {
         }
         if (args.altsetting != -1) {
             if (altsetting != -1)
-                printInfo("Board altsetting overridden");
+                LOG_INFO("Board altsetting overridden");
             altsetting = args.altsetting;
         }
 
         if (args.vid != 0) {
             if (vid != 0)
-                printInfo("Board VID overridden");
+                LOG_INFO("Board VID overridden");
             vid = args.vid;
         }
         if (args.pid != 0) {
             if (pid != 0)
-                printInfo("Board PID overridden");
+                LOG_INFO("Board PID overridden");
             pid = args.pid;
         }
 
@@ -421,7 +421,7 @@ std::string main_fpga(int argc, char **argv) {
     int idcode = -1, index = 0;
 
     if (args.verbose > normal)
-        cout << "found " << std::to_string(found) << " devices" << endl;
+        LOG_INFO("found %d devices", found);
 
     /* in verbose mode or when detect
      * display full chain with details
@@ -429,16 +429,16 @@ std::string main_fpga(int argc, char **argv) {
     if (args.verbose > normal || args.detect) {
         for (int i = 0; i < found; i++) {
             int t = listDev[i];
-            printf("index %d:\n", i);
+            LOG_INFO("index %d:\n", i);
             if (fpga_list.find(t) != fpga_list.end()) {
-                printf("\tidcode 0x%x\n\tmanufacturer %s\n\tfamily %s\n\tmodel  %s\n",
+                LOG_INFO("\tidcode 0x%x\n\tmanufacturer %s\n\tfamily %s\n\tmodel  %s\n",
                        t,
                        fpga_list[t].manufacturer.c_str(),
                        fpga_list[t].family.c_str(),
                        fpga_list[t].model.c_str());
-                printf("\tirlength %d\n", fpga_list[t].irlength);
+                LOG_INFO("\tirlength %d\n", fpga_list[t].irlength);
             } else if (misc_dev_list.find(t) != misc_dev_list.end()) {
-                printf("\tidcode   0x%x\n\ttype     %s\n\tirlength %d\n",
+                LOG_INFO("\tidcode   0x%x\n\ttype     %s\n\tirlength %d\n",
                        t,
                        misc_dev_list[t].name.c_str(),
                        misc_dev_list[t].irlength);
@@ -457,7 +457,7 @@ std::string main_fpga(int argc, char **argv) {
                     index = i;
                     if (idcode != -1) {
                         for (int i = 0; i < found; i++)
-                            printf("0x%08x\n", listDev[i]);
+                            LOG_INFO("0x%08x\n", listDev[i]);
                         delete (jtag);
                         return "Error: more than one FPGA found. Use --index-chain to force selection";
                     } else {
@@ -496,7 +496,7 @@ std::string main_fpga(int argc, char **argv) {
 	 * mainly used in conjunction with --index-chain
 	 */
     if (fpga_list.find(idcode) == fpga_list.end()) {
-        cerr << "Error: device " << hex << idcode << " not supported" << endl;
+        LOG_ERR("Device 0x%x not supported", idcode);
         delete (jtag);
         return "Error: device not supported";
     }
@@ -572,7 +572,7 @@ std::string main_fpga(int argc, char **argv) {
 
     if (args.prg_type == Device::RD_FLASH) {
         if (args.file_size == 0) {
-            printError("Error: 0 size for dump");
+            LOG_ERR("0 size for dump");
         } else {
             fpga->dumpFlash(args.offset, args.file_size);
         }
@@ -606,10 +606,10 @@ int run_xvc_server(const struct arguments &args, const cable_t &cable,
         xvc->close_connection();
         delete xvc;
     } catch (std::exception &e) {
-        printError("XVC_server failed with " + string(e.what()));
+        LOG_ERR("XVC_server failed with %s", e.what());
         return EXIT_FAILURE;
     }
-    printInfo("Xilinx Virtual Cable Stopped! ");
+    LOG_INFO("Xilinx Virtual Cable Stopped! ");
     return EXIT_SUCCESS;
 }
 #endif
@@ -640,7 +640,7 @@ static int parse_eng(string arg, double *dst) {
             return EINVAL;
         }
     } catch (...) {
-        cerr << "error : speed: invalid format" << endl;
+        LOG_ERR("speed: invalid format");
         return EINVAL;
     }
 }
@@ -775,12 +775,12 @@ int parse_opt(int argc, char **argv, struct arguments *args,
         auto result = options.parse(argc, argv);
 
         if (result.count("help")) {
-            cout << options.help() << endl;
+            LOG_INFO("%s", options.help().c_str());
             return 1;
         }
 
         if (verbose && quiet) {
-            printError("Error: can't select quiet and verbose mode in same time");
+            LOG_ERR("Can't select quiet and verbose mode in same time");
             throw std::exception();
         }
         if (verbose)
@@ -790,7 +790,7 @@ int parse_opt(int argc, char **argv, struct arguments *args,
         if (verbose_level != -2) {
             if ((verbose && verbose_level != 1) ||
                 (quiet && verbose_level != -1)) {
-                printError("Error: mismatch quiet/verbose and verbose-level\n");
+                LOG_ERR("Mismatch quiet/verbose and verbose-level\n");
                 throw std::exception();
             }
 
@@ -798,13 +798,13 @@ int parse_opt(int argc, char **argv, struct arguments *args,
         }
 
         if (result.count("Version")) {
-            cout << "openFPGALoader " << VERSION << endl;
+            LOG_INFO("openFPGALoader %s", VERSION);
             return 1;
         }
 
         if (result.count("write-flash") && result.count("write-sram") &&
             result.count("dump-flash")) {
-            printError("Error: both write to flash and write to ram enabled");
+            LOG_ERR("Both write to flash and write to ram enabled");
             throw std::exception();
         }
 
@@ -820,11 +820,11 @@ int parse_opt(int argc, char **argv, struct arguments *args,
         if (result.count("freq")) {
             double freq;
             if (parse_eng(freqo, &freq)) {
-                printError("Error: invalid format for --freq");
+                LOG_ERR("Invalid format for --freq");
                 throw std::exception();
             }
             if (freq < 1) {
-                printError("Error: --freq must be positive");
+                LOG_ERR("--freq must be positive");
                 throw std::exception();
             }
             args->freq = static_cast<uint32_t>(freq);
@@ -832,14 +832,14 @@ int parse_opt(int argc, char **argv, struct arguments *args,
 
         if (result.count("ftdi-channel")) {
             if (args->ftdi_channel < 0 || args->ftdi_channel > 3) {
-                printError("Error: valid FTDI channels are 0-3.");
+                LOG_ERR("Valid FTDI channels are 0-3.");
                 throw std::exception();
             }
         }
 
         if (result.count("busdev-num")) {
             if (bus_dev_num.size() != 2) {
-                printError("Error: busdev-num must be xx:yy");
+                LOG_ERR("busdev-num must be xx:yy");
                 throw std::exception();
             }
             try {
@@ -848,14 +848,14 @@ int parse_opt(int argc, char **argv, struct arguments *args,
                 args->device_addr = static_cast<uint8_t>(
                         std::stoi(bus_dev_num[1], nullptr, 0));
             } catch (std::exception &e) {
-                printError("Error: busdev-num invalid format: must be numeric values");
+                LOG_ERR("busdev-num invalid format: must be numeric values");
                 throw std::exception();
             }
         }
 
         if (result.count("pins")) {
             if (pins.size() != 4) {
-                printError("Error: pin_config need 4 pins");
+                LOG_ERR("pin_config need 4 pins");
                 throw std::exception();
             }
 
@@ -875,7 +875,7 @@ int parse_opt(int argc, char **argv, struct arguments *args,
                     pin_num = std::stoi(pins[i], nullptr, 0);
                 } catch (std::exception &e) {
                     if (pins_list.find(pins[i]) == pins_list.end()) {
-                        printError("Invalid pin name");
+                        LOG_ERR("Invalid pin name");
                         throw std::exception();
                     }
                     pin_num = pins_list[pins[i]];
@@ -906,8 +906,8 @@ int parse_opt(int argc, char **argv, struct arguments *args,
                 !args->unprotect_flash &&
                 !args->bulk_erase_flash
                     ) {
-                printError("Error: secondary bitfile not specified");
-                cout << options.help() << endl;
+                LOG_ERR("Secondary bitfile not specified");
+                LOG_INFO("%s", options.help().c_str());
                 throw std::exception();
             }
         }
@@ -927,12 +927,12 @@ int parse_opt(int argc, char **argv, struct arguments *args,
             !args->xvc &&
             !args->reset &&
             !args->conmcu) {
-            printError("Error: bitfile not specified");
-            cout << options.help() << endl;
+            LOG_ERR("bitfile not specified");
+            LOG_INFO("%s", options.help().c_str());
             throw std::exception();
         }
     } catch (const cxxopts::OptionException &e) {
-        cerr << "Error parsing options: " << e.what() << endl;
+        LOG_ERR("Parsing options: %s", e.what());
         throw std::exception();
     }
 
@@ -944,36 +944,34 @@ void displaySupported(const struct arguments &args, int8_t verbose_level) {
     if (args.list_cables == true) {
         stringstream t;
         t << setw(25) << left << "cable name" << "vid:pid";
-        printSuccess(t.str());
+        LOG_INFO("%s", t.str().c_str());
         for (auto b = cable_list.begin(); b != cable_list.end(); b++) {
             cable_t c = (*b).second;
             stringstream ss;
             ss << setw(25) << left << (*b).first;
             ss << "0x" << hex << right << setw(4) << setfill('0') << c.vid
                << ":" << setw(4) << c.pid;
-            printInfo(ss.str());
+            LOG_INFO("%s", ss.str().c_str());
         }
-        cout << endl;
     }
 
     if (args.list_boards) {
         stringstream t;
         t << setw(25) << left << "board name" << "cable_name";
-        printSuccess(t.str());
+        LOG_INFO("%s", t.str().c_str());
         for (auto b = board_list.begin(); b != board_list.end(); b++) {
             stringstream ss;
             target_board_t c = (*b).second;
             ss << setw(25) << left << (*b).first << c.cable_name;
-            printInfo(ss.str());
+            LOG_INFO("%s", ss.str().c_str());
         }
-        cout << endl;
     }
 
     if (args.list_fpga) {
         stringstream t;
         t << setw(12) << left << "IDCode" << setw(14) << "manufacturer";
         t << setw(16) << "family" << setw(20) << "model";
-        printSuccess(t.str());
+        LOG_INFO("%s", t.str().c_str());
         for (auto b = fpga_list.begin(); b != fpga_list.end(); b++) {
             fpga_model fpga = (*b).second;
             stringstream ss, idCode;
@@ -981,9 +979,8 @@ void displaySupported(const struct arguments &args, int8_t verbose_level) {
             ss << setw(12) << left << idCode.str();
             ss << setw(14) << fpga.manufacturer << setw(16) << fpga.family;
             ss << setw(20) << fpga.model;
-            printInfo(ss.str());
+            LOG_INFO("%s", ss.str().c_str());
         }
-        cout << endl;
     }
 
     if (args.scan_usb) {
@@ -1016,7 +1013,7 @@ std::map<uint32_t, fpga_model> FPGALoader::detect_fpga(int8_t verbose_level, usb
     };
 
     if (args.cable[0] == '-') { /* if no board and no cable */
-        printWarn("No cable or board specified: using direct ft2232 interface");
+        LOG_WARNING("No cable or board specified: using direct ft2232 interface");
         args.cable = "ft2232";
     }
 
@@ -1025,14 +1022,14 @@ std::map<uint32_t, fpga_model> FPGALoader::detect_fpga(int8_t verbose_level, usb
 
     auto select_cable = cable_list.find(args.cable);
     if (select_cable == cable_list.end()) {
-        printError("error : " + args.cable + " not found");
+        LOG_ERR("Cable %s not found", args.cable.c_str());
         return fpga_list_ret;
     }
     cable = select_cable->second;
 
     if (args.ftdi_channel != -1) {
         if (cable.type != MODE_FTDI_SERIAL && cable.type != MODE_FTDI_BITBANG) {
-            printError("Error: FTDI channel param is for FTDI cables.");
+            LOG_ERR("FTDI channel param is for FTDI cables.");
             return fpga_list_ret;
         }
 
@@ -1042,11 +1039,11 @@ std::map<uint32_t, fpga_model> FPGALoader::detect_fpga(int8_t verbose_level, usb
     }
 
     if (args.vid != 0) {
-        printInfo("Cable VID overridden");
+        LOG_INFO("Cable VID overridden");
         cable.vid = args.vid;
     }
     if (args.pid != 0) {
-        printInfo("Cable PID overridden");
+        LOG_INFO("Cable PID overridden");
         cable.pid = args.pid;
     }
 
@@ -1069,7 +1066,7 @@ std::map<uint32_t, fpga_model> FPGALoader::detect_fpga(int8_t verbose_level, usb
                         args.freq, args.verbose, args.ip_adr, args.port,
                         args.invert_read_edge, args.probe_firmware);
     } catch (std::exception &e) {
-        printError("JTAG init failed with: " + string(e.what()));
+        LOG_ERR("JTAG init failed with: %s", e.what());
         return fpga_list_ret;
     }
 

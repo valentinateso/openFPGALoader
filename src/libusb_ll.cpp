@@ -41,14 +41,14 @@ usb_scan_item** libusb_ll::scan(int8_t verbose_level)
 	/* iteration */
 	ssize_t list_size = libusb_get_device_list(_usb_ctx, &dev_list);
 	if (verbose_level > normal)
-		printInfo("found " + std::to_string(list_size) + " USB device");
+		LOG_INFO("found %ld USB device", list_size);
 
     char *mess = (char *) malloc(1024);
     if(verbose_level > normal) {
         snprintf(mess, 1024, "%3s %3s %-13s %-15s %-12s %-20s %s",
                  "Bus", "device", "vid:pid", "probe type", "manufacturer",
                  "serial", "product");
-        printSuccess(mess);
+        LOG_INFO("%s", mess);
     }
 
     int items_id = 0;
@@ -58,7 +58,7 @@ usb_scan_item** libusb_ll::scan(int8_t verbose_level)
 		bool found = false;
 		struct libusb_device_descriptor desc;
 		if (libusb_get_device_descriptor(usb_dev, &desc) != 0) {
-			printError("Unable to get device descriptor");
+			LOG_ERR("Unable to get device descriptor");
 			return nullptr;
 		}
 
@@ -105,7 +105,7 @@ usb_scan_item** libusb_ll::scan(int8_t verbose_level)
 				"Error code %d %s",
 				desc.idVendor, desc.idProduct,
 				ret, libusb_strerror(static_cast<libusb_error>(ret)));
-			printError(mess);
+			LOG_ERR("%s", mess);
 			continue;
 		}
 
@@ -134,7 +134,7 @@ usb_scan_item** libusb_ll::scan(int8_t verbose_level)
                      item->vid, item->pid,
                      items[0]->probe_type, item->imanufacturer, item->iserial, item->iproduct);
 
-            printInfo(mess);
+            LOG_INFO("%s", mess);
         }
 
 		libusb_close(handle);
