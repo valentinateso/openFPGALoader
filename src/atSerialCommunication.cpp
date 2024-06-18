@@ -20,13 +20,13 @@ ATSerialCommunication::ATSerialCommunication(const cable_t &cable, int verbose) 
     if (interface < 0) {
         if (verbose != quiet) {
             LOG_ERR("Unable to set interface: %d (%s)", interface,
-                   (interface == -1) ?
-                   "unknown interface"
-                                     : (interface == -2) ?
-                                       "USB device unavailable"
-                                                         : (interface == -3) ?
-                                                           "Device already open, interface can't be set in that state"
-                                                                             : "unknown error");
+                    (interface == -1) ?
+                    "unknown interface"
+                                      : (interface == -2) ?
+                                        "USB device unavailable"
+                                                          : (interface == -3) ?
+                                                            "Device already open, interface can't be set in that state"
+                                                                              : "unknown error");
         }
         return;
     }
@@ -42,13 +42,13 @@ ATSerialCommunication::ATSerialCommunication(const cable_t &cable, int verbose) 
     if (latency_ret < 0) {
         if (verbose != quiet) {
             LOG_ERR("Can not set latency timer: %d (%s)", latency_ret,
-                   (latency_ret == -1) ?
-                   "latency out of range (Value should be between 1 and 255)"
-                                       : (latency_ret == -2) ?
-                                         "unable to set latency timer"
-                                                             : (latency_ret == -3) ?
-                                                               "USB device unavailable"
-                                                                                   : "unknown error");
+                    (latency_ret == -1) ?
+                    "latency out of range (Value should be between 1 and 255)"
+                                        : (latency_ret == -2) ?
+                                          "unable to set latency timer"
+                                                              : (latency_ret == -3) ?
+                                                                "USB device unavailable"
+                                                                                    : "unknown error");
         }
     }
 
@@ -57,13 +57,13 @@ ATSerialCommunication::ATSerialCommunication(const cable_t &cable, int verbose) 
         if (verbose != quiet) {
 
             LOG_ERR("Can not set baud rate: %d (%s)", baudrate_ret,
-                   (baudrate_ret == -1) ?
-                   "invalid baudrate"
-                                        : (baudrate_ret == -2) ?
-                                          "setting baudrate failed"
-                                                               : (baudrate_ret == -3) ?
-                                                                 "USB device unavailable"
-                                                                                      : "unknown error");
+                    (baudrate_ret == -1) ?
+                    "invalid baudrate"
+                                         : (baudrate_ret == -2) ?
+                                           "setting baudrate failed"
+                                                                : (baudrate_ret == -3) ?
+                                                                  "USB device unavailable"
+                                                                                       : "unknown error");
         }
         return;
     }
@@ -82,9 +82,9 @@ std::string ATSerialCommunication::write_command(unsigned char *command, int len
     if (ret < 0) {
         if (verbose != quiet) {
             LOG_ERR("Failed to write data: %d (%s)", ret,
-                   (ret == -666) ?
-                   "USB device unavailable"
-                                 : "error code from usb_bulk_write()");
+                    (ret == -666) ?
+                    "USB device unavailable"
+                                  : "error code from usb_bulk_write()");
         }
         return "NULL";
     } else if (ret != len) {
@@ -97,29 +97,32 @@ std::string ATSerialCommunication::write_command(unsigned char *command, int len
     unsigned char u_response[ATSerialCommunication::MESSAGE_SIZE];
     ret = ftdi_read_data(_ftdi, u_response, ATSerialCommunication::MESSAGE_SIZE);
 
-    int tries = 0;
+    int tries = 1;
     while (ret == 0 && tries < 50) {
-        if (verbose != quiet)
-            LOG_WARNING("Got empty response. Reading again! %d", ++tries);
+        tries++;
+        if (verbose > normal)
+            LOG_INFO("Got empty response. Reading again! %d", tries);
         ret = ftdi_read_data(_ftdi, u_response, ATSerialCommunication::MESSAGE_SIZE);
     }
+
+    if (verbose != quiet)
+        LOG_WARNING("Tries: %d", tries);
 
     if (ret <= 0) {
         if (verbose != quiet) {
             LOG_ERR("Failed to read data: %d (%s)", ret,
-                   (ret == 0) ?
-                   "no data was available"
-                              : (ret == -666) ?
-                                "USB device unavailable"
-                                              : "error code from libusb_bulk_transfer()");
+                    (ret == 0) ?
+                    "no data was available"
+                               : (ret == -666) ?
+                                 "USB device unavailable"
+                                               : "error code from libusb_bulk_transfer()");
         }
         return "NULL";
     }
 
-    if (verbose) {
-        if (verbose > quiet)
-            LOG_INFO("Response: %s", u_response);
-    }
+    if (verbose > quiet)
+        LOG_INFO("Response: %s", u_response);
+
 
     char response[ATSerialCommunication::MESSAGE_SIZE];
     snprintf(response, sizeof u_response, "%s", u_response);
