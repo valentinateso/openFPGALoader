@@ -52,7 +52,7 @@ usb_scan_item** libusb_ll::scan(int8_t verbose_level)
     }
 
     int items_id = 0;
-    auto items = new usb_scan_item*[list_size];
+    auto items = new usb_scan_item*[list_size + 1];
 
 	while ((usb_dev = dev_list[i++]) != NULL) {
 		bool found = false;
