@@ -59,7 +59,7 @@ usb_scan_item** libusb_ll::scan(int8_t verbose_level)
 		struct libusb_device_descriptor desc;
 		if (libusb_get_device_descriptor(usb_dev, &desc) != 0) {
 			LOG_ERR("Unable to get device descriptor");
-			return nullptr;
+            continue;
 		}
 
 		/* Linux host controller */
@@ -95,8 +95,10 @@ usb_scan_item** libusb_ll::scan(int8_t verbose_level)
 			}
 		}
 
-		if (!found)
-			continue;
+		if (!found) {
+            delete item;
+            continue;
+        }
 
 		int ret = libusb_open(usb_dev, &handle);
 		if (ret != 0) {
@@ -106,6 +108,7 @@ usb_scan_item** libusb_ll::scan(int8_t verbose_level)
 				desc.idVendor, desc.idProduct,
 				ret, libusb_strerror(static_cast<libusb_error>(ret)));
 			LOG_ERR("%s", mess);
+            delete item;
 			continue;
 		}
 
@@ -140,7 +143,7 @@ usb_scan_item** libusb_ll::scan(int8_t verbose_level)
 		libusb_close(handle);
 	}
 
-    while (items_id < list_size) {
+    while (items_id <= list_size) {
         items[items_id++] = NULL;
     }
 
@@ -148,4 +151,174 @@ usb_scan_item** libusb_ll::scan(int8_t verbose_level)
 	free(mess);
 
 	return items;
+}
+
+
+int libusb_ll::find(int8_t verbose_level, usb_scan_item* dev)
+{
+	int i = 0;
+	libusb_device **dev_list;
+	libusb_device *usb_dev;
+	libusb_device_handle *handle;
+
+	/* iteration */
+	ssize_t list_size = libusb_get_device_list(_usb_ctx, &dev_list);
+	if (verbose_level > normal)
+		LOG_INFO("found %ld USB device", list_size);
+
+    char *mess = (char *) malloc(1024);
+
+	int return_value = 0;
+
+	while ((usb_dev = dev_list[i++]) != NULL) {
+		bool found = false;
+		struct libusb_device_descriptor desc;
+		if (libusb_get_device_descriptor(usb_dev, &desc) != 0) {
+			LOG_ERR("Unable to get device descriptor");
+            continue;
+		}
+
+		/* Linux host controller */
+		if (desc.idVendor == 0x1d6b)
+			continue;
+
+        auto* item = new usb_scan_item();
+
+		/* ftdi devices */
+		// FIXME: missing iProduct in cable_list
+		if (desc.idVendor == 0x403) {
+			if (desc.idProduct == 0x6010)
+				snprintf(item->probe_type, 256, "FTDI2232");
+			else if (desc.idProduct == 0x6011)
+				snprintf(item->probe_type, 256, "ft4232");
+			else if (desc.idProduct == 0x6001)
+				snprintf(item->probe_type, 256, "ft232RL");
+			else if (desc.idProduct == 0x6014)
+				snprintf(item->probe_type, 256, "ft232H");
+			else if (desc.idProduct == 0x6015)
+				snprintf(item->probe_type, 256, "ft231X");
+			else
+				snprintf(item->probe_type, 256, "unknown FTDI");
+			found = true;
+		} else {
+			// FIXME: DFU device can't be detected here
+			for (auto b = cable_list.begin(); b != cable_list.end(); b++) {
+				cable_t *c = &(*b).second;
+				if (c->vid == desc.idVendor && c->pid == desc.idProduct) {
+					snprintf(item->probe_type, 256, "%s", (*b).first.c_str());
+					found = true;
+				}
+			}
+		}
+
+		if (!found) {
+            delete item;
+            continue;
+        }
+
+		int ret = libusb_open(usb_dev, &handle);
+		if (ret != 0) {
+			snprintf(mess, 1024,
+				"Error: can't open device with vid:vid = 0x%04x:0x%04x. "
+				"Error code %d %s",
+				desc.idVendor, desc.idProduct,
+				ret, libusb_strerror(static_cast<libusb_error>(ret)));
+			LOG_ERR("%s", mess);
+            delete item;
+			continue;
+		}
+
+		ret = libusb_get_string_descriptor_ascii(handle,
+			desc.iProduct, item->iproduct, 200);
+		if (ret < 0)
+			snprintf((char*)item->iproduct, 200, "none");
+		ret = libusb_get_string_descriptor_ascii(handle,
+			desc.iManufacturer, item->imanufacturer, 200);
+		if (ret < 0)
+			snprintf((char*)item->imanufacturer, 200, "none");
+		ret = libusb_get_string_descriptor_ascii(handle,
+			desc.iSerialNumber, item->iserial, 200);
+		if (ret < 0)
+			snprintf((char*)item->iserial, 200, "none");
+        item->bus_addr = libusb_get_bus_number(usb_dev);
+        item->dev_addr = libusb_get_device_address(usb_dev);
+        item->vid = desc.idVendor;
+        item->pid = desc.idProduct;
+
+		libusb_close(handle);
+
+		if(item->bus_addr == dev->bus_addr
+			&& item->dev_addr == dev->dev_addr
+			&& item->vid == dev->vid
+			&& item->pid == dev->pid
+			&& (std::equal(std::begin(item->imanufacturer), std::end(item->imanufacturer), std::begin(dev->imanufacturer)))
+			&& (std::equal(std::begin(item->iproduct), std::end(item->iproduct), std::begin(dev->iproduct)))
+			&& (std::equal(std::begin(item->iserial), std::end(item->iserial), std::begin(dev->iserial)))
+			&& (std::equal(std::begin(item->probe_type), std::end(item->probe_type), std::begin(dev->probe_type)))
+		) {
+            delete item;
+			return_value = 1;
+			break;
+		}
+
+        delete item;
+	}
+
+	
+	libusb_free_device_list(dev_list, 1);
+	free(mess);
+
+	return return_value;
+}
+
+
+int libusb_ll::available(int8_t verbose_level)
+{
+	int i = 0;
+	libusb_device **dev_list;
+	libusb_device *usb_dev;
+	libusb_device_handle *handle;
+
+	/* iteration */
+	ssize_t list_size = libusb_get_device_list(_usb_ctx, &dev_list);
+	if (verbose_level > normal)
+		LOG_INFO("found %ld USB device", list_size);
+
+    char *mess = (char *) malloc(1024);
+
+	bool found = false;
+	while ((usb_dev = dev_list[i++]) != NULL) {
+		struct libusb_device_descriptor desc;
+		if (libusb_get_device_descriptor(usb_dev, &desc) != 0) {
+			LOG_ERR("Unable to get device descriptor");
+            continue;
+		}
+
+		/* Linux host controller */
+		if (desc.idVendor == 0x1d6b)
+			continue;
+
+		/* ftdi devices */
+		// FIXME: missing iProduct in cable_list
+		if (desc.idVendor == 0x403) {
+			found = true;
+		} else {
+			// FIXME: DFU device can't be detected here
+			for (auto b = cable_list.begin(); b != cable_list.end(); b++) {
+				cable_t *c = &(*b).second;
+				if (c->vid == desc.idVendor && c->pid == desc.idProduct) {
+					found = true;
+				}
+			}
+		}
+
+		if (found) {
+            break;;
+        }
+	}
+	
+	libusb_free_device_list(dev_list, 1);
+	free(mess);
+
+	return found ? 1 : 0;
 }

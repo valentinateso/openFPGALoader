@@ -28,6 +28,8 @@ ATSerialCommunication::ATSerialCommunication(const cable_t &cable, int verbose) 
                                                             "Device already open, interface can't be set in that state"
                                                                               : "unknown error");
         }
+        ftdi_deinit(_ftdi);
+        ftdi_free(_ftdi);
         return;
     }
 
@@ -35,6 +37,8 @@ ATSerialCommunication::ATSerialCommunication(const cable_t &cable, int verbose) 
     if (ftStatus < 0) {
         if (verbose != quiet)
             LOG_ERR("Can not open usb device: %s", ftdi_get_error_string(_ftdi));
+        ftdi_deinit(_ftdi);
+        ftdi_free(_ftdi);
         return;
     }
 
@@ -72,6 +76,7 @@ ATSerialCommunication::ATSerialCommunication(const cable_t &cable, int verbose) 
 ATSerialCommunication::~ATSerialCommunication() {
     ftdi_usb_close(_ftdi);
     ftdi_deinit(_ftdi);
+    ftdi_free(_ftdi);
 }
 
 std::string ATSerialCommunication::write_command(unsigned char *command, int len, int verbose) {

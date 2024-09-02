@@ -82,10 +82,44 @@ int parse_opt(int argc, char **argv, struct arguments *args,
 
 void displaySupported(const struct arguments &args, int8_t verbose_level);
 
-usb_scan_item ** FPGALoader::scan_usb(int8_t verbose_level) {
-    libusb_ll usb(0, 0);
-    usb_scan_item **items = usb.scan(verbose_level);
-    return items;
+FPGALoader::FPGALoader(int8_t verbose_level) : usb(0, 0) {
+    this->verbose_level = verbose_level;
+    snprintf(verbose_level_c, 3, "%d", verbose_level);
+}
+
+FPGALoader::~FPGALoader() {
+    free_scan_items();
+}
+
+void FPGALoader::select_usb(int ind) {
+    this->selected_usb = ind;
+}
+
+usb_scan_item **FPGALoader::scan_usb() {
+    this->free_scan_items();
+    this->scan_items = this->usb.scan(verbose_level);
+    return this->scan_items;
+}
+
+int FPGALoader::find_current() {
+    return this->usb.find(verbose_level, this->scan_items[this->selected_usb]);
+}
+
+int FPGALoader::find_any() {
+    return this->usb.available(verbose_level);
+}
+
+void FPGALoader::free_scan_items() {
+    if (this->scan_items != NULL) {
+        int i = 0;
+        usb_scan_item *item = this->scan_items[i++];
+        while (item != NULL) {
+            delete item;
+            item = this->scan_items[i++];
+        }
+        delete this->scan_items;
+        this->scan_items = NULL;
+    }
 }
 
 std::string main_fpga(int argc, char **argv) {
@@ -432,16 +466,16 @@ std::string main_fpga(int argc, char **argv) {
             LOG_INFO("index %d:\n", i);
             if (fpga_list.find(t) != fpga_list.end()) {
                 LOG_INFO("\tidcode 0x%x\n\tmanufacturer %s\n\tfamily %s\n\tmodel  %s\n",
-                       t,
-                       fpga_list[t].manufacturer.c_str(),
-                       fpga_list[t].family.c_str(),
-                       fpga_list[t].model.c_str());
+                         t,
+                         fpga_list[t].manufacturer.c_str(),
+                         fpga_list[t].family.c_str(),
+                         fpga_list[t].model.c_str());
                 LOG_INFO("\tirlength %d\n", fpga_list[t].irlength);
             } else if (misc_dev_list.find(t) != misc_dev_list.end()) {
                 LOG_INFO("\tidcode   0x%x\n\ttype     %s\n\tirlength %d\n",
-                       t,
-                       misc_dev_list[t].name.c_str(),
-                       misc_dev_list[t].irlength);
+                         t,
+                         misc_dev_list[t].name.c_str(),
+                         misc_dev_list[t].irlength);
             }
         }
         if (args.detect == true) {
@@ -627,11 +661,11 @@ static int parse_eng(string arg, double *dst) {
             switch (arg.back()) {
                 case 'k':
                 case 'K':
-                    *dst = (uint32_t) (1e3 * base);
+                    *dst = (uint32_t)(1e3 * base);
                     return 0;
                 case 'm':
                 case 'M':
-                    *dst = (uint32_t) (1e6 * base);
+                    *dst = (uint32_t)(1e6 * base);
                     return 0;
                 default:
                     return EINVAL;
@@ -649,7 +683,7 @@ static int parse_eng(string arg, double *dst) {
 int parse_opt(int argc, char **argv, struct arguments *args,
               jtag_pins_conf_t *pins_config) {
     string freqo;
-    vector<string> pins, bus_dev_num;
+    vector <string> pins, bus_dev_num;
     bool verbose, quiet;
     int8_t verbose_level = -2;
     try {
@@ -683,12 +717,13 @@ int parse_opt(int argc, char **argv, struct arguments *args,
                          cxxopts::value<int16_t>(args->cable_index))
                         ("busdev-num",
                          "select a probe by it bus and device number (bus_num:device_addr)",
-                         cxxopts::value<vector<string>>(bus_dev_num))
-                        ("ftdi-serial", "FTDI chip serial number",
-                         cxxopts::value<string>(args->ftdi_serial))
-                        ("ftdi-channel",
-                         "FTDI chip channel number (channels 0-3 map to A-D)",
-                         cxxopts::value<int>(args->ftdi_channel))
+                         cxxopts::value<vector < string>>
+        (bus_dev_num))
+        ("ftdi-serial", "FTDI chip serial number",
+                cxxopts::value<string>(args->ftdi_serial))
+                ("ftdi-channel",
+                 "FTDI chip channel number (channels 0-3 map to A-D)",
+                 cxxopts::value<int>(args->ftdi_channel))
 #if defined(USE_DEVICE_ARG)
                 ("d,device",  "device to use (/dev/ttyUSBx)",
                     cxxopts::value<string>(args->device))
@@ -734,9 +769,10 @@ int parse_opt(int argc, char **argv, struct arguments *args,
                 ("o,offset", "Start address (in bytes) for read/write into non volatile memory (default: 0)",
                  cxxopts::value<unsigned int>(args->offset))
                 ("pins", "pin config TDI:TDO:TCK:TMS",
-                 cxxopts::value<vector<string>>(pins))
-                ("probe-firmware", "firmware for JTAG probe (usbBlasterII)",
-                 cxxopts::value<string>(args->probe_firmware))
+                 cxxopts::value<vector < string>>
+        (pins))
+        ("probe-firmware", "firmware for JTAG probe (usbBlasterII)",
+                cxxopts::value<string>(args->probe_firmware))
                 ("protect-flash", "protect SPI flash area",
                  cxxopts::value<uint32_t>(args->protect_flash))
                 ("quiet", "Produce quiet output (no progress bar)",
@@ -989,9 +1025,47 @@ void displaySupported(const struct arguments &args, int8_t verbose_level) {
     }
 }
 
-std::map<uint32_t, fpga_model> FPGALoader::detect_fpga(int8_t verbose_level, usb_scan_item item, const char* cable_name, int ftdi_channel) {
+const char *FPGALoader::get_cable_name() {
+    if (this->scan_items == NULL) {
+        return NULL;
+    }
 
-    auto fpga_list_ret = std::map<uint32_t, fpga_model>();
+    usb_scan_item* item = this->scan_items[selected_usb];
+    if (item != NULL) {
+        if (strcmp(item->probe_type, "ft232H") == 0) {
+            return "ft232";
+        }
+        if (strcmp(item->probe_type, "FTDI2232") == 0) {
+            return "ft2232";
+        }
+    }
+    return NULL;
+}
+
+void FPGALoader::set_ftdi_channel(int value) {
+    this->detected_ftdi_channel = value;
+    snprintf(detected_ftdi_channel_c, 3, "%d", detected_ftdi_channel);
+}
+
+ std::map <uint32_t, fpga_model_data> FPGALoader::detect_fpga() {
+    for (int i = 0; i < 4; i++) {
+        if (detect_fpga(i) == 0 && this->detected_fpga.size() > 0) {
+            this->set_ftdi_channel(i);
+            break;
+        }
+    }
+    return this->detected_fpga;
+}
+
+
+int FPGALoader::detect_fpga(int ftdi_channel) {
+    detected_fpga.clear(); // clear previous detections
+
+    usb_scan_item *item = this->scan_items[this->selected_usb];
+    const char *cable_name = get_cable_name();
+    if (cable_name == NULL || item == NULL) {
+        return -1;
+    }
 
     cable_t cable;
     target_board_t *board = NULL;
@@ -1005,7 +1079,7 @@ std::map<uint32_t, fpga_model> FPGALoader::detect_fpga(int8_t verbose_level, usb
             /* index_chain file_size target_flash external_flash altsetting */
                              -1, 0, "primary", false, -1,
             /* vid, pid, index bus_addr, device_addr */
-                             item.vid, item.pid, -1, item.bus_addr, item.dev_addr,
+                             item->vid, item->pid, -1, item->bus_addr, item->dev_addr,
                              "127.0.0.1", 0, false, false, "", false, false,
             /* xvc server */
                              false, 3721, "-",
@@ -1023,14 +1097,14 @@ std::map<uint32_t, fpga_model> FPGALoader::detect_fpga(int8_t verbose_level, usb
     auto select_cable = cable_list.find(args.cable);
     if (select_cable == cable_list.end()) {
         LOG_ERR("Cable %s not found", args.cable.c_str());
-        return fpga_list_ret;
+        return -1;
     }
     cable = select_cable->second;
 
     if (args.ftdi_channel != -1) {
         if (cable.type != MODE_FTDI_SERIAL && cable.type != MODE_FTDI_BITBANG) {
             LOG_ERR("FTDI channel param is for FTDI cables.");
-            return fpga_list_ret;
+            return -1;
         }
 
         const int mapping[] = {INTERFACE_A, INTERFACE_B, INTERFACE_C,
@@ -1067,7 +1141,7 @@ std::map<uint32_t, fpga_model> FPGALoader::detect_fpga(int8_t verbose_level, usb
                         args.invert_read_edge, args.probe_firmware);
     } catch (std::exception &e) {
         LOG_ERR("JTAG init failed with: %s", e.what());
-        return fpga_list_ret;
+        return -1;
     }
 
     /* chain detection */
@@ -1078,37 +1152,61 @@ std::map<uint32_t, fpga_model> FPGALoader::detect_fpga(int8_t verbose_level, usb
     for (int i = 0; i < found; i++) {
         int t = listDev[i];
         if (fpga_list.find(t) != fpga_list.end()) {
-            fpga_list_ret.insert({t, fpga_list[t]});
+            fpga_model_data model = { fpga_list[t].manufacturer, fpga_list[t].family, fpga_list[t].model, fpga_list[t].irlength, t}; 
+            detected_fpga.insert({t, model});
         }
     }
 
     delete jtag;
-    return fpga_list_ret;
+    return 0;
 }
 
-std::string FPGALoader::write_flash(char* verbose_level, char* cable, char* ftdi_channel, char* spi_over_jtag_file, char* mcs_file) {
-    char *arguments[] = {"openFPGALoader", "--verbose-level", verbose_level,"-c", cable, "--ftdi-channel",  ftdi_channel,
+std::string FPGALoader::write_flash(char *spi_over_jtag_file,
+                                    char *mcs_file) {
+    char *cable = (char *) get_cable_name();
+    if (cable == NULL) {
+        return "No USB detected";
+    }
+    if (detected_ftdi_channel < 0) {
+        return "No FTDI channel detected";
+    }
+
+    char *arguments[] = {"openFPGALoader", "--verbose-level", verbose_level_c, "-c", cable, "--ftdi-channel",
+                         detected_ftdi_channel_c,
                          "-B", spi_over_jtag_file, "-f", mcs_file,
                          "--verify", "--reset",
                          NULL};
     return main_fpga(13, arguments);
 }
 
-std::string FPGALoader::send_command(int verbose_level, char* cable, char* command, int len) {
+std::string FPGALoader::send_command(char *command, int len) {
+    const char *cable = get_cable_name();
+    if (cable == NULL) {
+        return "No USB detected";
+    }
+
     /* search for cable */
     auto select_cable = cable_list.find(cable);
     if (select_cable == cable_list.end()) {
         return "Error : cable not found";
     }
-    ATSerialCommunication* at_communication = new ATSerialCommunication(select_cable->second, verbose_level);
-    auto ret = at_communication->write_command(reinterpret_cast<unsigned char*>(command), len, verbose_level);
-    delete(at_communication);
+    ATSerialCommunication *at_communication = new ATSerialCommunication(select_cable->second, verbose_level);
+    auto ret = at_communication->write_command(reinterpret_cast<unsigned char *>(command), len, verbose_level);
+    delete (at_communication);
     return ret;
 }
 
-std::string FPGALoader::reset(char *verbose_level, char *cable, char *ftdi_channel) {
-    char *arguments[] = {"openFPGALoader", "--verbose-level", verbose_level, "-c", cable, "--ftdi-channel",
-                         ftdi_channel, "--reset",
+std::string FPGALoader::reset() {
+    char *cable = (char *) get_cable_name();
+    if (cable == NULL) {
+        return "No USB detected";
+    };
+    if (detected_ftdi_channel < 0) {
+        return "No FTDI channel detected";
+    }
+
+    char *arguments[] = {"openFPGALoader", "--verbose-level", verbose_level_c, "-c", cable, "--ftdi-channel",
+                         detected_ftdi_channel_c, "--reset",
                          NULL};
     return main_fpga(8, arguments);
 }

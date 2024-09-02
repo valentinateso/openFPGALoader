@@ -25,6 +25,8 @@ class libusb_ll {
 		~libusb_ll();
 
         usb_scan_item** scan(int8_t verbose_level);
+        int find(int8_t verbose_level, usb_scan_item* item);
+        int available(int8_t verbose_level);
 
 	private:
 		struct libusb_context *_usb_ctx;
