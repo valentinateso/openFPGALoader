@@ -20,6 +20,9 @@ protected:
     static const int BAUDRATE;
     static const int LATENCY;
 
+private:
+    int is_open = 0;
+
 };
 
 

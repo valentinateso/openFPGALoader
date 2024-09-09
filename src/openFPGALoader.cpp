@@ -102,6 +102,9 @@ usb_scan_item **FPGALoader::scan_usb() {
 }
 
 int FPGALoader::find_current() {
+    if(this->selected_usb < 0) {
+        return 0;
+    }
     return this->usb.find(verbose_level, this->scan_items[this->selected_usb]);
 }
 
@@ -1026,7 +1029,7 @@ void displaySupported(const struct arguments &args, int8_t verbose_level) {
 }
 
 const char *FPGALoader::get_cable_name() {
-    if (this->scan_items == NULL) {
+    if (this->scan_items == NULL || selected_usb < 0) {
         return NULL;
     }
 
@@ -1047,7 +1050,8 @@ void FPGALoader::set_ftdi_channel(int value) {
     snprintf(detected_ftdi_channel_c, 3, "%d", detected_ftdi_channel);
 }
 
- std::map <uint32_t, fpga_model_data> FPGALoader::detect_fpga() {
+
+std::map <uint32_t, fpga_model_data> FPGALoader::detect_fpga() {
     for (int i = 0; i < 4; i++) {
         if (detect_fpga(i) == 0 && this->detected_fpga.size() > 0) {
             this->set_ftdi_channel(i);
@@ -1060,6 +1064,10 @@ void FPGALoader::set_ftdi_channel(int value) {
 
 int FPGALoader::detect_fpga(int ftdi_channel) {
     detected_fpga.clear(); // clear previous detections
+
+    if(this->selected_usb < 0) {
+        return -1;
+    }
 
     usb_scan_item *item = this->scan_items[this->selected_usb];
     const char *cable_name = get_cable_name();

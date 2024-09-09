@@ -37,10 +37,12 @@ ATSerialCommunication::ATSerialCommunication(const cable_t &cable, int verbose) 
     if (ftStatus < 0) {
         if (verbose != quiet)
             LOG_ERR("Can not open usb device: %s", ftdi_get_error_string(_ftdi));
+        ftdi_usb_close(_ftdi);
         ftdi_deinit(_ftdi);
         ftdi_free(_ftdi);
         return;
     }
+    is_open = 1;
 
     int latency_ret = ftdi_set_latency_timer(_ftdi, ATSerialCommunication::LATENCY);
     if (latency_ret < 0) {
@@ -74,12 +76,19 @@ ATSerialCommunication::ATSerialCommunication(const cable_t &cable, int verbose) 
 }
 
 ATSerialCommunication::~ATSerialCommunication() {
-    ftdi_usb_close(_ftdi);
-    ftdi_deinit(_ftdi);
-    ftdi_free(_ftdi);
+    if(is_open > 0) {
+        ftdi_usb_close(_ftdi);
+        ftdi_deinit(_ftdi);
+        ftdi_free(_ftdi);
+    }
 }
 
 std::string ATSerialCommunication::write_command(unsigned char *command, int len, int verbose) {
+    if(is_open <= 0) {
+        LOG_ERR("Could not open usb");
+        return "NULL";
+    }
+
     if (verbose > normal)
         LOG_INFO("Sending: %s", command);
 
