@@ -1182,14 +1182,14 @@ std::string FPGALoader::write_flash(char *spi_over_jtag_file,
         return "No FTDI channel detected";
     }
 
-    char busdev[10];
-    snprintf(busdev, 10, "%d:%d", item->bus_addr, item->dev_addr);
+    char busdev[6];
+    snprintf(busdev, 6, "%.2d:%.2d", item->bus_addr, item->dev_addr);
     char *arguments[] = {"openFPGALoader", "--verbose-level", verbose_level_c, "-c", cable, "--busdev-num", busdev,
                          "--ftdi-channel", detected_ftdi_channel_c,
                          "-B", spi_over_jtag_file, "-f", mcs_file,
                          "--verify", "--reset",
                          NULL};
-    return main_fpga(13, arguments);
+    return main_fpga(15, arguments);
 }
 
 std::string FPGALoader::send_command(char *command, int len) {
@@ -1223,10 +1223,10 @@ std::string FPGALoader::reset() {
         return "No FTDI channel detected";
     }
 
-    char busdev[10];
-    snprintf(busdev, 10, "%d:%d", item->bus_addr, item->dev_addr);
+    char busdev[6];
+    snprintf(busdev, 6, "%.2d:%.2d", item->bus_addr, item->dev_addr);
     char *arguments[] = {"openFPGALoader", "--verbose-level", verbose_level_c, "-c", cable, "--busdev-num", busdev,
                          "--ftdi-channel", detected_ftdi_channel_c, "--reset",
                          NULL};
-    return main_fpga(8, arguments);
+    return main_fpga(10, arguments);
 }
