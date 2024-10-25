@@ -33,7 +33,7 @@ ATSerialCommunication::ATSerialCommunication(const cable_t &cable, int verbose) 
         return;
     }
 
-    int ftStatus = ftdi_usb_open(_ftdi, cable.vid, cable.pid);
+    int ftStatus = ftdi_usb_open_bus_addr(_ftdi, cable.bus_addr, cable.device_addr);
     if (ftStatus < 0) {
         if (verbose != quiet)
             LOG_ERR("Can not open usb device: %s", ftdi_get_error_string(_ftdi));

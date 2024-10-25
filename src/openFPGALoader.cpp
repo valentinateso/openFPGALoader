@@ -102,7 +102,7 @@ usb_scan_item **FPGALoader::scan_usb() {
 }
 
 int FPGALoader::find_current() {
-    if(this->selected_usb < 0) {
+    if (this->selected_usb < 0) {
         return 0;
     }
     return this->usb.find(verbose_level, this->scan_items[this->selected_usb]);
@@ -1033,7 +1033,7 @@ const char *FPGALoader::get_cable_name() {
         return NULL;
     }
 
-    usb_scan_item* item = this->scan_items[selected_usb];
+    usb_scan_item *item = this->scan_items[selected_usb];
     if (item != NULL) {
         if (strcmp(item->probe_type, "ft232H") == 0) {
             return "ft232";
@@ -1065,7 +1065,7 @@ std::map <uint32_t, fpga_model_data> FPGALoader::detect_fpga() {
 int FPGALoader::detect_fpga(int ftdi_channel) {
     detected_fpga.clear(); // clear previous detections
 
-    if(this->selected_usb < 0) {
+    if (this->selected_usb < 0) {
         return -1;
     }
 
@@ -1160,7 +1160,8 @@ int FPGALoader::detect_fpga(int ftdi_channel) {
     for (int i = 0; i < found; i++) {
         int t = listDev[i];
         if (fpga_list.find(t) != fpga_list.end()) {
-            fpga_model_data model = { fpga_list[t].manufacturer, fpga_list[t].family, fpga_list[t].model, fpga_list[t].irlength, t}; 
+            fpga_model_data model = {fpga_list[t].manufacturer, fpga_list[t].family, fpga_list[t].model,
+                                     fpga_list[t].irlength, t};
             detected_fpga.insert({t, model});
         }
     }
@@ -1171,16 +1172,20 @@ int FPGALoader::detect_fpga(int ftdi_channel) {
 
 std::string FPGALoader::write_flash(char *spi_over_jtag_file,
                                     char *mcs_file) {
+
+    usb_scan_item *item = this->scan_items[selected_usb];
     char *cable = (char *) get_cable_name();
-    if (cable == NULL) {
+    if (cable == NULL || item == NULL) {
         return "No USB detected";
     }
     if (detected_ftdi_channel < 0) {
         return "No FTDI channel detected";
     }
 
-    char *arguments[] = {"openFPGALoader", "--verbose-level", verbose_level_c, "-c", cable, "--ftdi-channel",
-                         detected_ftdi_channel_c,
+    char busdev[10];
+    snprintf(busdev, 10, "%d:%d", item->bus_addr, item->dev_addr);
+    char *arguments[] = {"openFPGALoader", "--verbose-level", verbose_level_c, "-c", cable, "--busdev-num", busdev,
+                         "--ftdi-channel", detected_ftdi_channel_c,
                          "-B", spi_over_jtag_file, "-f", mcs_file,
                          "--verify", "--reset",
                          NULL};
@@ -1188,8 +1193,9 @@ std::string FPGALoader::write_flash(char *spi_over_jtag_file,
 }
 
 std::string FPGALoader::send_command(char *command, int len) {
+    usb_scan_item *item = this->scan_items[selected_usb];
     const char *cable = get_cable_name();
-    if (cable == NULL) {
+    if (cable == NULL || item == NULL) {
         return "No USB detected";
     }
 
@@ -1198,6 +1204,9 @@ std::string FPGALoader::send_command(char *command, int len) {
     if (select_cable == cable_list.end()) {
         return "Error : cable not found";
     }
+
+    select_cable->second.device_addr = item->dev_addr;
+    select_cable->second.bus_addr = item->bus_addr;
     ATSerialCommunication *at_communication = new ATSerialCommunication(select_cable->second, verbose_level);
     auto ret = at_communication->write_command(reinterpret_cast<unsigned char *>(command), len, verbose_level);
     delete (at_communication);
@@ -1205,16 +1214,19 @@ std::string FPGALoader::send_command(char *command, int len) {
 }
 
 std::string FPGALoader::reset() {
+    usb_scan_item *item = this->scan_items[selected_usb];
     char *cable = (char *) get_cable_name();
-    if (cable == NULL) {
+    if (cable == NULL || item == NULL) {
         return "No USB detected";
     };
     if (detected_ftdi_channel < 0) {
         return "No FTDI channel detected";
     }
 
-    char *arguments[] = {"openFPGALoader", "--verbose-level", verbose_level_c, "-c", cable, "--ftdi-channel",
-                         detected_ftdi_channel_c, "--reset",
+    char busdev[10];
+    snprintf(busdev, 10, "%d:%d", item->bus_addr, item->dev_addr);
+    char *arguments[] = {"openFPGALoader", "--verbose-level", verbose_level_c, "-c", cable, "--busdev-num", busdev,
+                         "--ftdi-channel", detected_ftdi_channel_c, "--reset",
                          NULL};
     return main_fpga(8, arguments);
 }
