@@ -122,6 +122,18 @@ int FPGALoader::find_current() {
     return this->usb.find(verbose_level, this->scan_items[this->selected_usb]);
 }
 
+int FPGALoader::find(int index) {
+    if (index < 0) {
+        return 0;
+    }
+
+    if(scanItemCnt(this->scan_items) <= index) {
+        return 0;
+    }
+
+    return this->usb.find(verbose_level, this->scan_items[index]);
+}
+
 int FPGALoader::find_any() {
     return this->usb.available(verbose_level);
 }
@@ -1047,6 +1059,10 @@ const char *FPGALoader::get_cable_name() {
         return NULL;
     }
 
+    if(scanItemCnt(this->scan_items) <= this->selected_usb) {
+        return NULL;
+    }
+
     usb_scan_item *item = this->scan_items[selected_usb];
     if (item != NULL) {
         if (strcmp(item->probe_type, "ft232H") == 0) {
@@ -1190,6 +1206,13 @@ int FPGALoader::detect_fpga(int ftdi_channel) {
 
 std::string FPGALoader::write_flash(char *spi_over_jtag_file,
                                     char *mcs_file) {
+    if (this->selected_usb < 0) {
+        return "No USB detected";
+    }
+
+    if(scanItemCnt(this->scan_items) <= this->selected_usb) {
+        return "No USB detected";
+    }
 
     usb_scan_item *item = this->scan_items[selected_usb];
     char *cable = (char *) get_cable_name();
@@ -1211,6 +1234,14 @@ std::string FPGALoader::write_flash(char *spi_over_jtag_file,
 }
 
 std::string FPGALoader::send_command(char *command, int len) {
+    if (this->selected_usb < 0) {
+        return "No USB detected";
+    }
+
+    if(scanItemCnt(this->scan_items) <= this->selected_usb) {
+        return "No USB detected";
+    }
+
     usb_scan_item *item = this->scan_items[selected_usb];
     const char *cable = get_cable_name();
     if (cable == NULL || item == NULL) {
@@ -1232,6 +1263,14 @@ std::string FPGALoader::send_command(char *command, int len) {
 }
 
 std::string FPGALoader::reset() {
+    if (this->selected_usb < 0) {
+        return "No USB detected";
+    }
+
+    if(scanItemCnt(this->scan_items) <= this->selected_usb) {
+        return "No USB detected";
+    }
+
     usb_scan_item *item = this->scan_items[selected_usb];
     char *cable = (char *) get_cable_name();
     if (cable == NULL || item == NULL) {

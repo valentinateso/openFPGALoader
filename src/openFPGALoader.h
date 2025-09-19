@@ -55,6 +55,8 @@ public:
     void select_usb(int ind);
 
     int find_current();
+
+    int find(int ind);
     
     int find_any();
 
