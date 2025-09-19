@@ -3,6 +3,7 @@
  * Copyright (C) 2019 Gwenhael Goavec-Merou <gwenhael.goavec-merou@trabucayre.com>
  */
 
+#include <cstdio>
 #include <string.h>
 #include <unistd.h>
 
@@ -101,10 +102,23 @@ usb_scan_item **FPGALoader::scan_usb() {
     return this->scan_items;
 }
 
+int scanItemCnt(usb_scan_item** scan_items) {
+    int i = 0;
+    while (scan_items[i] != NULL) {
+        i++;
+    }
+    return i;
+}
+
 int FPGALoader::find_current() {
     if (this->selected_usb < 0) {
         return 0;
     }
+
+    if(scanItemCnt(this->scan_items) <= this->selected_usb) {
+        return 0;
+    }
+
     return this->usb.find(verbose_level, this->scan_items[this->selected_usb]);
 }
 
@@ -1069,6 +1083,10 @@ int FPGALoader::detect_fpga(int ftdi_channel) {
         return -1;
     }
 
+    if(scanItemCnt(this->scan_items) <= this->selected_usb) {
+        return -1;
+    }
+
     usb_scan_item *item = this->scan_items[this->selected_usb];
     const char *cable_name = get_cable_name();
     if (cable_name == NULL || item == NULL) {
@@ -1187,9 +1205,9 @@ std::string FPGALoader::write_flash(char *spi_over_jtag_file,
     char *arguments[] = {"openFPGALoader", "--verbose-level", verbose_level_c, "-c", cable, "--busdev-num", busdev,
                          "--ftdi-channel", detected_ftdi_channel_c,
                          "-B", spi_over_jtag_file, "-f", mcs_file,
-                         "--verify", "--reset",
+                         "--verify", "--reset", "--unprotect-flash",
                          NULL};
-    return main_fpga(15, arguments);
+    return main_fpga(16, arguments);
 }
 
 std::string FPGALoader::send_command(char *command, int len) {
