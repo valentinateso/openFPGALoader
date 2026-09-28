@@ -103,6 +103,8 @@ usb_scan_item **FPGALoader::scan_usb() {
 }
 
 int scanItemCnt(usb_scan_item** scan_items) {
+    if (scan_items == NULL)
+        return 0;
     int i = 0;
     while (scan_items[i] != NULL) {
         i++;
@@ -146,7 +148,7 @@ void FPGALoader::free_scan_items() {
             delete item;
             item = this->scan_items[i++];
         }
-        delete this->scan_items;
+        delete[] this->scan_items;
         this->scan_items = NULL;
     }
 }
@@ -530,7 +532,7 @@ std::string main_fpga(int argc, char **argv) {
             }
         } else {
             index = args.index_chain;
-            if (index > found || index < 0) {
+            if (index >= found || index < 0) {
                 delete (jtag);
                 return "Error: wrong index for device in JTAG chain";
             }
@@ -1223,8 +1225,9 @@ std::string FPGALoader::write_flash(char *spi_over_jtag_file,
         return "No FTDI channel detected";
     }
 
-    char busdev[6];
-    snprintf(busdev, 6, "%.2d:%.2d", item->bus_addr, item->dev_addr);
+    // no zero padding: --busdev-num parses with base 0, so "08" would be read as octal
+    char busdev[8];
+    snprintf(busdev, sizeof(busdev), "%d:%d", item->bus_addr, item->dev_addr);
     char *arguments[] = {"openFPGALoader", "--verbose-level", verbose_level_c, "-c", cable, "--busdev-num", busdev,
                          "--ftdi-channel", detected_ftdi_channel_c,
                          "-B", spi_over_jtag_file, "-f", mcs_file,
@@ -1254,9 +1257,10 @@ std::string FPGALoader::send_command(char *command, int len) {
         return "Error : cable not found";
     }
 
-    select_cable->second.device_addr = item->dev_addr;
-    select_cable->second.bus_addr = item->bus_addr;
-    ATSerialCommunication *at_communication = new ATSerialCommunication(select_cable->second, verbose_level);
+    cable_t cable_cfg = select_cable->second;
+    cable_cfg.device_addr = item->dev_addr;
+    cable_cfg.bus_addr = item->bus_addr;
+    ATSerialCommunication *at_communication = new ATSerialCommunication(cable_cfg, verbose_level);
     auto ret = at_communication->write_command(reinterpret_cast<unsigned char *>(command), len, verbose_level);
     delete (at_communication);
     return ret;
@@ -1280,8 +1284,9 @@ std::string FPGALoader::reset() {
         return "No FTDI channel detected";
     }
 
-    char busdev[6];
-    snprintf(busdev, 6, "%.2d:%.2d", item->bus_addr, item->dev_addr);
+    // no zero padding: --busdev-num parses with base 0, so "08" would be read as octal
+    char busdev[8];
+    snprintf(busdev, sizeof(busdev), "%d:%d", item->bus_addr, item->dev_addr);
     char *arguments[] = {"openFPGALoader", "--verbose-level", verbose_level_c, "-c", cable, "--busdev-num", busdev,
                          "--ftdi-channel", detected_ftdi_channel_c, "--reset",
                          NULL};
