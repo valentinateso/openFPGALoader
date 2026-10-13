@@ -132,7 +132,7 @@ Xilinx::Xilinx(Jtag *jtag, const std::string &filename,
 	bool verify, int8_t verbose,
 	bool skip_load_bridge, bool skip_reset):
 	Device(jtag, filename, file_type, verify, verbose),
-	SPIInterface(filename, verbose, 256, verify, skip_load_bridge,
+	SPIInterface(filename, verbose, 4096, verify, skip_load_bridge,
 				 skip_reset),
 	_device_package(device_package), _spiOverJtagPath(spiOverJtagPath),
 	_irlen(6), _filename(filename), _secondary_filename(secondary_filename)
@@ -500,7 +500,8 @@ void Xilinx::program_spi(ConfigBitstreamParser * bit, unsigned int offset,
 {
 	uint8_t *data = bit->getData();
 	int length = bit->getLength() / 8;
-	SPIInterface::write(offset, data, length, unprotect_flash);
+	if (!SPIInterface::write(offset, data, length, unprotect_flash))
+		throw std::runtime_error("SPI flash write failed");
 }
 
 void Xilinx::program_mem(ConfigBitstreamParser *bitfile)

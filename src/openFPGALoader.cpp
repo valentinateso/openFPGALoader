@@ -1229,11 +1229,11 @@ std::string FPGALoader::write_flash(char *spi_over_jtag_file,
     char busdev[8];
     snprintf(busdev, sizeof(busdev), "%d:%d", item->bus_addr, item->dev_addr);
     char *arguments[] = {"openFPGALoader", "--verbose-level", verbose_level_c, "-c", cable, "--busdev-num", busdev,
-                         "--ftdi-channel", detected_ftdi_channel_c,
+                         "--ftdi-channel", detected_ftdi_channel_c, "--freq", "15M",
                          "-B", spi_over_jtag_file, "-f", mcs_file,
                          "--verify", "--reset", "--unprotect-flash",
                          NULL};
-    return main_fpga(16, arguments);
+    return main_fpga(18, arguments);
 }
 
 std::string FPGALoader::send_command(char *command, int len) {

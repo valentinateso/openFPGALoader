@@ -254,8 +254,8 @@ int SPIFlash::write_page(int addr, uint8_t *data, int len)
 
 	memcpy(tx+addr_len, data, len);
 
-	if (write_enable() == -1)
-		return -1;
+	/* skip WEL check to save a USB round-trip per page, --verify catches a missed page */
+	_spi->spi_put(FLASH_WREN, NULL, NULL, 0);
 
 	_spi->spi_put(write_cmd, tx, NULL, len+addr_len);
 	return _spi->spi_wait(FLASH_RDSR, FLASH_RDSR_WIP, 0x00, 1000);
